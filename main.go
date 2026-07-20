@@ -228,21 +228,14 @@ func indentName(s indentStyle) string {
 }
 
 func passThrough() {
-	out := hookOutput{
-		HookSpecificOutput: hookSpecific{
-			HookEventName:      "PreToolUse",
-			PermissionDecision: "allow",
-		},
-	}
-	json.NewEncoder(os.Stdout).Encode(out)
+	// Exit 0 with no stdout — hook makes no decision, normal permission flow applies.
 }
 
 func passThroughWithContext(ctx string) {
 	out := hookOutput{
 		HookSpecificOutput: hookSpecific{
-			HookEventName:      "PreToolUse",
-			PermissionDecision: "allow",
-			AdditionalContext:  ctx,
+			HookEventName:     "PreToolUse",
+			AdditionalContext: ctx,
 		},
 	}
 	json.NewEncoder(os.Stdout).Encode(out)
@@ -317,10 +310,11 @@ func handleRead(raw json.RawMessage) {
 
 	postPassThroughWithContext(
 		"claude-tab-fix: " + ri.FilePath + " uses tab indentation. " +
-			"IMPORTANT: the Read tool prefixes each line with \"N\\t\" (line number + tab). " +
+			"IMPORTANT: the Read tool prefixes each line with \"N\\t\" (line number + tab separator). " +
 			"That leading tab is the separator, NOT part of the file content. " +
-			"When constructing old_string or new_string for an Edit call, " +
-			"use one fewer leading tab than you see in the Read output.",
+			"Example: Read output \"42\\t\\t\\tfunc()\" → file content is \"\\t\\tfunc()\" (2 tabs, not 3; subtract the separator). " +
+			"When constructing old_string for an Edit call, " +
+			"subtract the separator tab from the total tabs after the line number.",
 	)
 }
 

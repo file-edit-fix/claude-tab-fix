@@ -103,7 +103,7 @@ when combined with the added context this tool gives ("hey claude, please rememb
 
 ## How it works
 
-**PostToolUse / Read** — after every `Read` call on a tab-indented file, the hook injects a context note reminding Claude that the `N\t` line-number prefix is a separator tab, not part of the file content, so `old_string` should have one fewer leading tab than the raw output suggests.
+**PostToolUse / Read** — after every `Read` call on a tab-indented file, the hook injects a context note explaining that the `N\t` line-number prefix is a separator tab, not part of the file content, with an explicit example: 'Read output `42\t\t\tfunc()` → file content is `\t\tfunc()` (2 tabs, not 3).'
 
 **PreToolUse / Edit** — before every `Edit` call, the hook:
 
