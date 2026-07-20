@@ -1,0 +1,311 @@
+package service
+
+import (
+	"os"
+	"strings"
+
+	"github.com/templui/templui/utils"
+	servicedb "github.com/withholm/msg/internal/service/db"
+	"github.com/withholm/msg/web/templates/templui/avatar"
+	"github.com/withholm/msg/web/templates/templui/button"
+	"github.com/withholm/msg/web/templates/templui/dropdown"
+	"github.com/withholm/msg/web/templates/templui/icon"
+	"github.com/withholm/msg/web/templates/templui/sidebar"
+)
+
+// navItem defines a top-level sidebar entry.
+// Add new routes here — children render indented below the parent when active.
+type navItem struct {
+	Label    string
+	Href     string
+	Icon     templ.Component
+	Children []subNavItem
+}
+
+type subNavItem struct {
+	Label string
+	Href  string
+}
+
+// sidebarNav is the single source of truth for console navigation.
+// Add, remove, or reorder items here to update the sidebar everywhere.
+// themeNavItem is appended at runtime when SHOW_THEME_PAGE is set.
+var sidebarNav = buildSidebarNav()
+
+func buildSidebarNav() []navItem {
+	p := icon.Props{Size: 15}
+	nav := []navItem{
+		{
+			Label: "Dashboard",
+			Href:  "/",
+			Icon:  icon.LayoutDashboard(p),
+		},
+		{
+			Label: "Identities",
+			Href:  "/identities",
+			Icon:  icon.Users(p),
+		},
+		{
+			Label: "Activity",
+			Href:  "/activity",
+			Icon:  icon.List(p),
+		},
+		{
+			Label: "Provisioning",
+			Href:  "/scim",
+			Icon:  icon.TableProperties(p),
+			Children: []subNavItem{
+				{Label: "Import Logs", Href: "/scim"},
+				{Label: "SCIM Tests", Href: "/scim/tests"},
+			},
+		},
+		{
+			Label: "Automation",
+			Href:  "/automation",
+			Icon:  icon.Radio(p),
+			Children: []subNavItem{
+				{Label: "Workers", Href: "/automation"},
+				{Label: "Triggers", Href: "/automation/triggers"},
+				{Label: "Flows", Href: "/automation/flows"},
+				{Label: "Credentials", Href: "/automation/credentials"},
+			},
+		},
+		{
+			Label: "Lifecycle",
+			Href:  "/lifecycle",
+			Icon:  icon.Workflow(p),
+			Children: []subNavItem{
+				{Label: "Lifecycles", Href: "/lifecycle"},
+				{Label: "Matching", Href: "/lifecycle/matching"},
+				{Label: "Translation", Href: "/lifecycle/translation"},
+			},
+		},
+		// {
+		// 	Label: "Groups",
+		// 	Href:  "/groups",
+		// 	Icon:  icon.Network(p),
+		// },
+		// {
+		// 	Label: "Rules",
+		// 	Href:  "/rules",
+		// 	Icon:  icon.Unplug(p),
+		// },
+		{
+			Label:    "Settings",
+			Href:     "/settings",
+			Icon:     icon.Settings(p),
+			Children: settingsNavChildren(),
+		},
+	}
+	if os.Getenv("SHOW_THEME_PAGE") != "" {
+		nav = append(nav, navItem{
+			Label: "Theme",
+			Href:  "/theme",
+			Icon:  icon.Palette(p),
+		})
+	}
+	return nav
+}
+
+// settingsNavChildren derives sidebar children from the canonical SettingSections list.
+func settingsNavChildren() []subNavItem {
+	children := make([]subNavItem, len(servicedb.SettingSections))
+	for i, s := range servicedb.SettingSections {
+		children[i] = subNavItem{Label: s.Label, Href: "/settings?section=" + s.ID}
+	}
+	return children
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+// navIsActive returns true when the nav item's path matches the current request path.
+// currentPath may include a query string; comparison is against the path segment only.
+func navIsActive(itemHref, currentPath string) bool {
+	path, _, _ := strings.Cut(currentPath, "?")
+	if itemHref == "/" {
+		return path == "/"
+	}
+	return strings.HasPrefix(path, itemHref)
+}
+
+// navChildIsActive returns active CSS classes when the child href exactly matches
+// the current path (including query string), or falls back to path-prefix matching
+// for children that share the parent href.
+func navChildIsActive(childHref, currentPath, parentHref string) string {
+	if childHref == currentPath {
+		return "bg-muted text-foreground font-medium"
+	}
+	// For child hrefs that equal the parent (e.g. /automation == /automation),
+	// highlight only when path is exactly the parent and no other child matched.
+	if childHref == parentHref && currentPath == parentHref {
+		return "bg-muted text-foreground font-medium"
+	}
+	// Path-prefix match only for children without query params.
+	childPath, _, childHasQuery := strings.Cut(childHref, "?")
+	if !childHasQuery && childHref != parentHref {
+		curPath, _, _ := strings.Cut(currentPath, "?")
+		if strings.HasPrefix(curPath, childPath) {
+			return "bg-muted text-foreground font-medium"
+		}
+	}
+	return "text-muted-foreground"
+}
+
+// Sidebar renders the content for the drawer-side.
+// It is collapsible, controlled by the global Alpine store '$store.sidebar.collapsed'.
+templ Sidebar(currentPath string, collapsed bool) {
+	@sidebar.Sidebar(sidebar.Props{
+		Collapsible: sidebar.CollapsibleIcon,
+		Variant:     sidebar.VariantFloating,
+		Collapsed:   collapsed,
+	}) {
+		@sidebar.Header() {
+			@sidebar.Menu() {
+				@sidebar.MenuItem() {
+					@dropdown.Dropdown() {
+						@dropdown.Trigger() {
+							@sidebar.MenuButton(sidebar.MenuButtonProps{
+								Size: sidebar.MenuButtonSizeLg,
+							}) {
+								@avatar.Avatar(avatar.Props{Class: "size-8 rounded-lg"}) {
+									@avatar.Image(avatar.ImageProps{
+										Src: "https://avatars.githubusercontent.com/u/26936893?v=4",
+									})
+								}
+								<div class="grid flex-1 text-left text-sm leading-tight">
+									<span class="truncate font-medium">John Doe</span>
+									<span class="truncate text-xs">john@example.com</span>
+								</div>
+								@icon.ChevronsUpDown(icon.Props{Class: "ml-auto size-4"})
+							}
+						}
+						@dropdown.Content(dropdown.ContentProps{
+							Class:     "w-56",
+							Placement: dropdown.PlacementTopStart,
+							Attributes: templ.Attributes{
+								"x-data": "themeSwitcher()",
+							},
+						}) {
+							@dropdown.Label() {
+								John Doe
+							}
+							@dropdown.Separator()
+							@dropdown.Item() {
+								<span class="flex items-center">
+									@icon.User(icon.Props{Size: 16, Class: "mr-2"})
+									Profile
+								</span>
+							}
+							@dropdown.Item() {
+								<a href="/settings" class="flex items-center">
+									@icon.Settings(icon.Props{Size: 16, Class: "mr-2"})
+									Settings
+								</a>
+							}
+							@dropdown.Separator()
+							<div class="flex items-center gap-2 px-2 py-1.5">
+								<span class="text-xs text-muted-foreground flex-1">Theme</span>
+								<div class="flex items-center gap-0.5 rounded-md border border-border p-0.5">
+									<button
+										type="button"
+										title="Light"
+										class="rounded p-1 transition-colors hover:bg-muted"
+										:class="theme === 'light' ? 'bg-muted text-foreground' : 'text-muted-foreground'"
+										@click.stop="theme = 'light'"
+									>
+										@icon.Sun(icon.Props{Size: 13})
+									</button>
+									<button
+										type="button"
+										title="System"
+										class="rounded p-1 transition-colors hover:bg-muted"
+										:class="theme === 'auto' ? 'bg-muted text-foreground' : 'text-muted-foreground'"
+										@click.stop="theme = 'auto'"
+									>
+										@icon.Monitor(icon.Props{Size: 13})
+									</button>
+									<button
+										type="button"
+										title="Dark"
+										class="rounded p-1 transition-colors hover:bg-muted"
+										:class="theme === 'dark' ? 'bg-muted text-foreground' : 'text-muted-foreground'"
+										@click.stop="theme = 'dark'"
+									>
+										@icon.Moon(icon.Props{Size: 13})
+									</button>
+								</div>
+							</div>
+							@dropdown.Separator()
+							@dropdown.Item() {
+								@button.Button(button.Props{
+									Href:      "/logout",
+									FullWidth: true,
+									Class:     "flex items-left bg-muted text-foreground",
+									Type:      button.TypeButton,
+								}) {
+									@icon.LogOut(icon.Props{Size: 16, Class: "mr-2"})
+									Log out
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		@sidebar.Content() {
+			@sidebar.Group() {
+				@sidebar.GroupLabel() {
+					Platform
+				}
+				@sidebar.Menu() {
+					for _,nav := range sidebarNav {
+						if len(nav.Children) > 0 {
+							<div x-data={ "{ open: " + boolStr(navIsActive(nav.Href, currentPath)) + " }" }>
+								@sidebar.MenuItem() {
+									@sidebar.MenuButton(sidebar.MenuButtonProps{
+										Tooltip: nav.Label,
+										Attributes: templ.Attributes{
+											"@click": "open = !open",
+											"type":   "button",
+										},
+									}) {
+										@nav.Icon
+										<span>{ nav.Label }</span>
+										<svg x-bind:class="open ? 'rotate-90' : ''" class="ml-auto size-3.5 shrink-0 transition-transform duration-200 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+									}
+									<div x-show="open" x-cloak class="ml-6 mt-0.5 flex flex-col gap-0.5">
+										for _, child := range nav.Children {
+											<a
+												href={ templ.SafeURL(child.Href) }
+												class={ utils.TwMerge("text-sm px-2 py-1 rounded-md transition-colors hover:bg-muted/60", navChildIsActive(child.Href, currentPath, nav.Href)) }
+											>
+												{ child.Label }
+											</a>
+										}
+									</div>
+								}
+							</div>
+						} else {
+							@sidebar.MenuItem() {
+								@sidebar.MenuButton(sidebar.MenuButtonProps{
+									Href:    nav.Href,
+									Tooltip: nav.Label,
+								}) {
+									@nav.Icon
+									<span>{ nav.Label }</span>
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		@sidebar.Footer() {
+		}
+	}
+}

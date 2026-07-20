@@ -1,0 +1,43 @@
+version: 2
+
+builds:
+  - binary: claude-tab-fix
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - CLAUDE.md
+      - FLOW.md
+      - LICENCE
+      - PRIVACY.md
+      - logo.png
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: WithHolm
+    name: claude-tab-fix
