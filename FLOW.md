@@ -21,7 +21,7 @@ Claude issues a Read tool call
             └─ file uses tab indentation
                         └──► postPassThroughWithContext
                              additionalContext: "the N\t prefix is the separator,
-                             not file content — use one fewer leading tab in old_string"
+                             not file content — see the Read hook note for example"
 ```
 
 ## Edit (PreToolUse)
