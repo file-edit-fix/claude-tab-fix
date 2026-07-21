@@ -333,6 +333,8 @@ func handleEdit(raw json.RawMessage) {
 	}
 
 	fileStr := string(content)
+	// Normalize CRLF to LF for reliable matching
+	fileStr = strings.ReplaceAll(fileStr, "\r\n", "\n")
 	fileIndent := detectIndent(fileStr)
 	oldIndent := detectIndent(ei.OldString)
 

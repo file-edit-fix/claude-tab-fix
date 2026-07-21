@@ -710,6 +710,9 @@ func TestGolden(t *testing.T) {
 				t.Fatalf("could not read testdata file: %v", err)
 			}
 			fileStr := string(fileBytes)
+			// Normalize CRLF to LF for reliable matching (testdata files may use CRLF)
+			fileStr = strings.ReplaceAll(fileStr, "\r\n", "\n")
+
 
 			if tc.wantBlocked {
 				if res.exitCode != 2 {
