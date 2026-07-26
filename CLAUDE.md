@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 架构
 
 ```
-main.go (468 行，单文件)
+main.go（单文件，~418 行）
 ├── 数据结构: hookInput, editInput, bashInput, readInput, hookOutput, indentStyle
 ├── 核心算法: detectIndent → reindent → fuzzyFindBlock (三级缩进修正)
 ├── Hook 处理:
