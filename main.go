@@ -338,11 +338,10 @@ func handleRead(raw json.RawMessage) {
 
 	postPassThroughWithContext(
 		"claude-tab-fix: " + ri.FilePath + " uses tab indentation. " +
-			"IMPORTANT: the Read tool prefixes each line with \"N\\t\" (line number + tab separator). " +
-			"That leading tab is the separator, NOT part of the file content. " +
-			"Example: Read output \"42\\t\\t\\tfunc()\" → file content is \"\\t\\tfunc()\" (2 tabs, not 3; subtract the separator). " +
-			"When constructing old_string for an Edit call, " +
-			"subtract the separator tab from the total tabs after the line number.",
+			"Read format: 'LINE_NUMBER<TAB>file_content'. " +
+			"The first TAB after the line number is the column separator, not file content. " +
+			"Example: '170\\t\\t\\t\\tif' → separator(1 tab) + file indent(3 tabs). " +
+			"Rule: old_string uses 1 fewer leading tab than Read output shows.",
 	)
 }
 
