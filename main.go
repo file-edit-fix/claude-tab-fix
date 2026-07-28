@@ -396,26 +396,39 @@ func handleEdit(raw json.RawMessage) {
 		if start >= 0 {
 			matched := strings.Join(fileLines[start:start+len(queryLines)], "\n")
 			originalNewOld := newOld
-			newOld = matched
-
-			// Re-derive newNew with same relative indent shift
-			newNew = reindent(ei.NewString, oldIndent, fileIndent)
-
-			// Adjust newNew depth to match the corrected newOld depth.
+			newOld = matched			// Adjust newNew depth to match the corrected newOld depth.
 			// When fuzzy matching finds a block with different indentation
 			// depth than what reindent produced, newNew needs the same shift.
 			newOldLines := strings.Split(newOld, "\n")
 			origNewOldLines := strings.Split(originalNewOld, "\n")
 			newNewLines := strings.Split(newNew, "\n")
+			
+			// Track the last non-zero diff to apply to extra lines in newNew
+			// (when the replacement has more lines than the query).
+			lastDiff := 0
 			for i := range newNewLines {
-				if i >= len(newOldLines) || i >= len(origNewOldLines) {
-					break
-				}
-				correctedUnits := countIndentUnits(newOldLines[i], fileIndent)
-				originalUnits := countIndentUnits(origNewOldLines[i], fileIndent)
-				if diff := correctedUnits - originalUnits; diff != 0 {
+				if i < len(newOldLines) && i < len(origNewOldLines) {
+					correctedUnits := countIndentUnits(newOldLines[i], fileIndent)
+					originalUnits := countIndentUnits(origNewOldLines[i], fileIndent)
+					diff := correctedUnits - originalUnits
+					if diff != 0 {
+						lastDiff = diff
+					}
 					cur := countIndentUnits(newNewLines[i], fileIndent)
 					newUnits := cur + diff
+					if newUnits < 0 {
+						newUnits = 0
+					}
+					trimmed := strings.TrimLeft(newNewLines[i], " \t")
+					if fileIndent.char == '\t' {
+						newNewLines[i] = strings.Repeat("\t", newUnits) + trimmed
+					} else {
+						newNewLines[i] = strings.Repeat(strings.Repeat(" ", fileIndent.width), newUnits) + trimmed
+					}
+				} else if lastDiff != 0 {
+					// Extra lines in newNew inherit the last non-zero depth correction
+					cur := countIndentUnits(newNewLines[i], fileIndent)
+					newUnits := cur + lastDiff
 					if newUnits < 0 {
 						newUnits = 0
 					}

@@ -110,6 +110,69 @@ func TestReindent_DeepSpacesToTabs(t *testing.T) {
 	}
 }
 
+// --- countIndentUnits ---
+
+func TestCountIndentUnits_Tabs(t *testing.T) {
+	tests := []struct {
+		line  string
+		want  int
+		style indentStyle
+	}{
+		{"\t\t\tx := 1", 3, indentStyle{char: '\t', width: 1}},
+		{"\t\tx := 1", 2, indentStyle{char: '\t', width: 1}},
+		{"\tx := 1", 1, indentStyle{char: '\t', width: 1}},
+		{"x := 1", 0, indentStyle{char: '\t', width: 1}},
+		{"", 0, indentStyle{char: '\t', width: 1}},
+	}
+	for _, tc := range tests {
+		got := countIndentUnits(tc.line, tc.style)
+		if got != tc.want {
+			t.Fatalf("countIndentUnits(%q, tab) = %d, want %d", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestCountIndentUnits_Spaces4(t *testing.T) {
+	style := indentStyle{char: ' ', width: 4}
+	tests := []struct {
+		line string
+		want int
+	}{
+		{"            x := 1", 3},
+		{"        x := 1", 2},
+		{"    x := 1", 1},
+		{"x := 1", 0},
+		{"", 0},
+		{"  x := 1", 0}, // 2 spaces ≠ 4-space unit
+	}
+	for _, tc := range tests {
+		got := countIndentUnits(tc.line, style)
+		if got != tc.want {
+			t.Fatalf("countIndentUnits(%q, 4-space) = %d, want %d", tc.line, got, tc.want)
+		}
+	}
+}
+
+func TestCountIndentUnits_Spaces2(t *testing.T) {
+	style := indentStyle{char: ' ', width: 2}
+	tests := []struct {
+		line string
+		want int
+	}{
+		{"      x := 1", 3},
+		{"    x := 1", 2},
+		{"  x := 1", 1},
+		{"x := 1", 0},
+		{"", 0},
+	}
+	for _, tc := range tests {
+		got := countIndentUnits(tc.line, style)
+		if got != tc.want {
+			t.Fatalf("countIndentUnits(%q, 2-space) = %d, want %d", tc.line, got, tc.want)
+		}
+	}
+}
+
 // --- lineSimilarity ---
 
 func TestLineSimilarity_Identical(t *testing.T) {
@@ -418,6 +481,27 @@ func TestIntegration_TabWrongDepth(t *testing.T) {
 	}))
 
 	assertBlocked(t, res, "\t\tif x != nil {\n\t\t\tprocess(x)\n\t\t}")
+}
+
+func TestIntegration_NewStringDepthCorrection(t *testing.T) {
+	// File uses tabs at depth 2; old_string uses 1 tab (too shallow).
+	// new_string also uses 1 tab and has MORE lines than old_string.
+	// Both should be corrected to depth 2, including the extra line.
+	fileContent := "package main\n\nfunc foo() {\n\tfor _, x := range items {\n\t\tif x != nil {\n\t\t\tprocess(x)\n\t\t}\n\t}\n}\n"
+	path := writeTemp(t, fileContent)
+
+	res := runHook(t, makeInput(t, "Edit", editInput{
+		FilePath:  path,
+		OldString: "\tif x != nil {\n\t\tprocess(x)\n\t}",  // one tab too shallow
+		NewString: "\tif x != nil {\n\t\tprocess(x)\n\t\thandleResult(x)\n\t}",  // one tab too shallow, extra line
+	}))
+
+	// Verify old_string is corrected to match file depth
+	assertBlocked(t, res, "\t\tif x != nil {\n\t\t\tprocess(x)\n\t\t}")
+	// Verify new_string is also corrected, including the extra line
+	if !strings.Contains(res.stderr, "\t\t\tprocess(x)\n\t\t\thandleResult(x)\n\t\t}") {
+		t.Fatalf("new_string depth not corrected for extra lines\nstderr:\n%s", res.stderr)
+	}
 }
 
 func TestIntegration_AlreadyMatchingIndent(t *testing.T) {
