@@ -97,7 +97,61 @@ go tool cover -html=coverage.out
 
 `.claude-plugin/` 目录是插件注册基础：
 - `plugin.json` — 元数据（名称 `claude-tab-fix`、版本 `1.0.3`、描述、作者 WithHolm、仓库 URL）
-- 用户通过 `/plugin install claude-tab-fix@WithHolm/claude-tab-fix` 注册，自动配置 PreToolUse（Edit）+ PostToolUse（Read）两个 Hook
+- 用户通过 `/plugin install claude-tab-fix@WithHolm/claude-tab-fix` 注册插件
+- **注意：** 插件注册仅注册元数据，不会自动配置 hooks。必须手动将 hooks 添加到 `settings.json`（见下方全局安装）
+
+## 全局安装（使 hooks 在所有项目及 worktrees 中生效）
+
+claude-tab-fix 的 hooks 默认只在项目级 `.claude/settings.json` 中配置。当你在**其他项目**（如 AK-Switch）或 **worktree 环境**中工作时，hooks 不会自动激活。
+
+### 方法一：安装脚本（推荐）
+
+```bash
+# 确保 claude-tab-fix 二进制已安装
+go install github.com/WithHolm/claude-tab-fix@latest
+
+# 运行安装脚本
+./scripts/install-global.sh     # Linux/macOS
+.\scripts\install-global.ps1    # Windows (PowerShell)
+```
+
+脚本会将 hooks 添加到 `~/.claude/settings.json`，**合并**到现有配置中（不覆盖已有 hooks）。
+
+### 方法二：手动配置
+
+将以下配置添加到 `~/.claude/settings.json`：
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
+      }
+    ]
+  }
+}
+```
+
+全局安装后，hooks 在以下场景生效：
+- 所有项目的主 checkout
+- 所有项目的 worktree 环境
+- 使用 `EnterWorktree` 创建的新 worktree
 
 ## 文件编辑规则
 
