@@ -147,6 +147,33 @@ func reindent(s string, from, to indentStyle) string {
 	return sb.String()
 }
 
+// countIndentUnits counts the number of leading indent units in a line,
+// using the given indent style to determine the unit size.
+func countIndentUnits(line string, style indentStyle) int {
+	pos := 0
+	units := 0
+	for pos < len(line) {
+		if style.char == '\t' {
+			if line[pos] != '\t' {
+				break
+			}
+			units++
+			pos++
+		} else {
+			if pos+style.width > len(line) {
+				break
+			}
+			segment := line[pos : pos+style.width]
+			if strings.TrimLeft(segment, " ") != "" {
+				break
+			}
+			units++
+			pos += style.width
+		}
+	}
+	return units
+}
+
 // lineSimilarity returns a 0.0–1.0 score comparing two lines after stripping
 // leading/trailing whitespace. Uses longest-common-subsequence character ratio.
 func lineSimilarity(a, b string) float64 {
@@ -207,8 +234,9 @@ func fuzzyFindBlock(fileLines, query []string) (bestStart int, bestScore float64
 			}
 		}
 		score := total / float64(n)
-		// require 85% of lines to individually match
-		if float64(matched)/float64(n) >= 0.85 && score > bestScore {
+		// require 75% of lines to individually match (lowered from 85%
+		// to accommodate closing-brace lines like "}" vs "} else if …")
+		if float64(matched)/float64(n) >= 0.75 && score > bestScore {
 			bestScore = score
 			bestStart = i
 		}
@@ -367,9 +395,40 @@ func handleEdit(raw json.RawMessage) {
 		start, score := fuzzyFindBlock(fileLines, queryLines)
 		if start >= 0 {
 			matched := strings.Join(fileLines[start:start+len(queryLines)], "\n")
+			originalNewOld := newOld
 			newOld = matched
-			// Re-derive newNew with same relative indent shift applied to new_string
+
+			// Re-derive newNew with same relative indent shift
 			newNew = reindent(ei.NewString, oldIndent, fileIndent)
+
+			// Adjust newNew depth to match the corrected newOld depth.
+			// When fuzzy matching finds a block with different indentation
+			// depth than what reindent produced, newNew needs the same shift.
+			newOldLines := strings.Split(newOld, "\n")
+			origNewOldLines := strings.Split(originalNewOld, "\n")
+			newNewLines := strings.Split(newNew, "\n")
+			for i := range newNewLines {
+				if i >= len(newOldLines) || i >= len(origNewOldLines) {
+					break
+				}
+				correctedUnits := countIndentUnits(newOldLines[i], fileIndent)
+				originalUnits := countIndentUnits(origNewOldLines[i], fileIndent)
+				if diff := correctedUnits - originalUnits; diff != 0 {
+					cur := countIndentUnits(newNewLines[i], fileIndent)
+					newUnits := cur + diff
+					if newUnits < 0 {
+						newUnits = 0
+					}
+					trimmed := strings.TrimLeft(newNewLines[i], " \t")
+					if fileIndent.char == '\t' {
+						newNewLines[i] = strings.Repeat("\t", newUnits) + trimmed
+					} else {
+						newNewLines[i] = strings.Repeat(strings.Repeat(" ", fileIndent.width), newUnits) + trimmed
+					}
+				}
+			}
+			newNew = strings.Join(newNewLines, "\n")
+
 			logf("fuzzy match: found block (score=%.2f, lines %d–%d)", score, start+1, start+len(queryLines))
 		} else {
 			logf("WARNING: old_string not found in file and fuzzy match failed — edit will likely fail")
