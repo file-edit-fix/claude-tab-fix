@@ -93,65 +93,61 @@ go tool cover -html=coverage.out
 - **GitHub Actions** — `.github/workflows/release.yml`：tag push `v*` 触发，先跑测试再用 goreleaser 发布
 - **发布命令** — `make release`（生产）或 `make release-snapshot`（本地测试）；version 通过 `-ldflags -X main.version={{.Version}}` 注入
 
-## 插件注册
+## 插件注册与全局 hooks
 
 `.claude-plugin/` 目录是插件注册基础：
 - `plugin.json` — 元数据（名称 `claude-tab-fix`、版本 `1.0.3`、描述、作者 WithHolm、仓库 URL）
 - 用户通过 `/plugin install claude-tab-fix@WithHolm/claude-tab-fix` 注册插件
-- **注意：** 插件注册仅注册元数据，不会自动配置 hooks。必须手动将 hooks 添加到 `settings.json`（见下方全局安装）
 
-## 全局安装（使 hooks 在所有项目及 worktrees 中生效）
+**插件系统会从 `hooks/hooks.json` 自动加载 hooks**，当插件启用时，hooks 全局生效（包括所有项目及 worktrees）。不需要手动配置全局 `settings.json`。
 
-claude-tab-fix 的 hooks 默认只在项目级 `.claude/settings.json` 中配置。当你在**其他项目**（如 AK-Switch）或 **worktree 环境**中工作时，hooks 不会自动激活。
-
-### 方法一：安装脚本（推荐）
+### 插件安装
 
 ```bash
-# 确保 claude-tab-fix 二进制已安装
 go install github.com/WithHolm/claude-tab-fix@latest
+/plugin marketplace add WithHolm/claude-tab-fix
+/plugin install claude-tab-fix@WithHolm/claude-tab-fix
+```
 
-# 运行安装脚本
+### 更新插件缓存
+
+如果 `hooks/hooks.json` 有更新，需要重新安装插件或手动更新缓存：
+
+```bash
+# 方式一：重新安装
+/plugin uninstall claude-tab-fix@claude-tab-fix
+/plugin install claude-tab-fix@WithHolm/claude-tab-fix
+
+# 方式二：手动更新缓存（适用于 fork）
+# 更新 ~/.claude/plugins/cache/claude-tab-fix/claude-tab-fix/<version>/hooks/hooks.json
+```
+
+### 使用 fork 安装
+
+如果从 fork 安装，需要先添加 fork 作为 marketplace：
+
+```bash
+/plugin marketplace add your-org/claude-tab-fix
+/plugin install claude-tab-fix@your-org/claude-tab-fix
+```
+
+### `hooks/hooks.json` 配置
+
+当前 hooks 配置覆盖以下工具：
+
+- **PreToolUse/Edit** — 缩进不匹配时自动修正（exit 2）
+- **PreToolUse/Bash** — 对 tab 缩进文件发出警告
+- **PreToolUse/Write** — 对 tab 缩进文件发出警告
+- **PostToolUse/Read** — 注入 tab 分隔符提示
+
+### 回退方案：手动全局配置
+
+如果插件系统不可用（如 Claude Code 版本过低），可以使用安装脚本将 hooks 添加到 `~/.claude/settings.json`：
+
+```bash
 ./scripts/install-global.sh     # Linux/macOS
 .\scripts\install-global.ps1    # Windows (PowerShell)
 ```
-
-脚本会将 hooks 添加到 `~/.claude/settings.json`，**合并**到现有配置中（不覆盖已有 hooks）。
-
-### 方法二：手动配置
-
-将以下配置添加到 `~/.claude/settings.json`：
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit",
-        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
-      },
-      {
-        "matcher": "Write",
-        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Read",
-        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
-      }
-    ]
-  }
-}
-```
-
-全局安装后，hooks 在以下场景生效：
-- 所有项目的主 checkout
-- 所有项目的 worktree 环境
-- 使用 `EnterWorktree` 创建的新 worktree
 
 ## 文件编辑规则
 

@@ -34,25 +34,9 @@ make install
 
 ## Setup
 
-### Setup script (recommended for global installation)
+### As a plugin (recommended)
 
-Install the binary, then run the setup script to add the hooks to your global Claude Code settings:
-
-```sh
-# 1. Install the binary
-go install github.com/WithHolm/claude-tab-fix@latest
-
-# 2. Run the setup script
-./scripts/install-global.sh     # Linux/macOS
-# or
-.\scripts\install-global.ps1    # Windows (PowerShell)
-```
-
-The script adds hooks to `~/.claude/settings.json` so they activate in **every** project, including worktrees. If hooks already exist, they are merged (new matchers are added, existing ones are not duplicated).
-
-### As a plugin
-
-Install the binary first, then install the plugin so Claude Code picks up the hook automatically:
+Install the binary and the plugin. The plugin system automatically loads hooks from `hooks/hooks.json` and applies them globally — no manual configuration needed.
 
 ```sh
 # 1. Install the binary
@@ -63,9 +47,27 @@ go install github.com/WithHolm/claude-tab-fix@latest
 /plugin install claude-tab-fix@WithHolm/claude-tab-fix
 ```
 
-The plugin registers with Claude Code's marketplace. After installing the plugin,
-you still need to add the hooks to your settings (see **Manually** below).
-The setup script (above) automates the manual step for you.
+The plugin's `hooks/hooks.json` is read by Claude Code's plugin system and applied when the plugin is enabled. This makes the hooks activate in **every** project, including worktrees.
+
+> **Note:** If you forked this repo, install from your fork instead:
+> ```
+> /plugin marketplace add your-org/claude-tab-fix
+> /plugin install claude-tab-fix@your-org/claude-tab-fix
+> ```
+
+### Setup script (fallback)
+
+If you prefer not to use the plugin system, run the setup script to add hooks to your global `~/.claude/settings.json`:
+
+```sh
+# 1. Install the binary
+go install github.com/WithHolm/claude-tab-fix@latest
+
+# 2. Run the setup script
+./scripts/install-global.sh     # Linux/macOS
+# or
+.\scripts\install-global.ps1    # Windows (PowerShell)
+```
 
 ### Manually
 
