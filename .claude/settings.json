@@ -28,6 +28,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "claude-tab-fix"
+          }
+        ]
+      }
     ]
   }
 }

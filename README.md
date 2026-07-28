@@ -36,7 +36,7 @@ make install
 
 ### As a plugin (recommended)
 
-Install the binary first, then install the plugin so Claude Code picks up the hook automatically:
+Install the binary and the plugin. The plugin system automatically loads hooks from `hooks/hooks.json` and applies them globally — no manual configuration needed.
 
 ```sh
 # 1. Install the binary
@@ -47,7 +47,27 @@ go install github.com/WithHolm/claude-tab-fix@latest
 /plugin install claude-tab-fix@WithHolm/claude-tab-fix
 ```
 
-The plugin registers both hooks for you — no manual config editing needed.
+The plugin's `hooks/hooks.json` is read by Claude Code's plugin system and applied when the plugin is enabled. This makes the hooks activate in **every** project, including worktrees.
+
+> **Note:** If you forked this repo, install from your fork instead:
+> ```
+> /plugin marketplace add your-org/claude-tab-fix
+> /plugin install claude-tab-fix@your-org/claude-tab-fix
+> ```
+
+### Setup script (fallback)
+
+If you prefer not to use the plugin system, run the setup script to add hooks to your global `~/.claude/settings.json`:
+
+```sh
+# 1. Install the binary
+go install github.com/WithHolm/claude-tab-fix@latest
+
+# 2. Run the setup script
+./scripts/install-global.sh     # Linux/macOS
+# or
+.\scripts\install-global.ps1    # Windows (PowerShell)
+```
 
 ### Manually
 
@@ -62,6 +82,14 @@ Install the binary, then add the hooks to your Claude Code settings.
       {
         "matcher": "Edit",
         "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [{ "type": "command", "command": "claude-tab-fix" }]
       }
     ],
     "PostToolUse": [
@@ -74,7 +102,9 @@ Install the binary, then add the hooks to your Claude Code settings.
 }
 ```
 
-**Globally** — add the same block to `~/.claude/settings.json` to enable it for every project on your machine.
+**Globally** — add the same block to `~/.claude/settings.json` to enable it for every project on your machine, including worktrees.
+
+> **Important:** The plugin alone does **not** activate hooks globally. Hooks must be configured in `settings.json` (via the setup script above or manually). Without this, the hook only works in projects that have their own `.claude/settings.json` — and worktrees may not inherit project-level settings.
 
 If the binary is not on your `PATH`, use the full path: `$(go env GOPATH)/bin/claude-tab-fix`.
 
