@@ -1,14 +1,14 @@
 {
   "name": "claude-tab-fix",
   "owner": {
-    "name": "WithHolm"
+    "name": "file-edit-fix"
   },
   "plugins": [
     {
       "name": "claude-tab-fix",
       "source": "./",
       "description": "PreToolUse hook that normalizes indentation in Edit tool calls — fixes silent failures when Claude uses spaces in tab-indented files",
-      "version": "1.0.3"
+      "version": "0.1.0"
     }
   ]
 }
