@@ -88,7 +88,7 @@ go tool cover -html=coverage.out
 
 ## 发布与版本
 
-- **版本文件** — `VERSION` 记录两个版本号：`app: X.Y.Z`（应用版本）、`plugin: X.Y.Z`（插件版本）
+- **版本文件** — `VERSION` 记录统一版本号 `X.Y.Z`（应用版本与插件版本一致）
 - **GoReleaser** — `.goreleaser.yaml` 配置跨平台构建（linux/darwin/windows × amd64/arm64），发布时归档 README、CLAUDE.md、FLOW.md、LICENCE、PRIVACY.md、logo.png
 - **GitHub Actions** — `.github/workflows/release.yml`：tag push `v*` 触发，先跑测试再用 goreleaser 发布
 - **发布命令** — `make release`（生产）或 `make release-snapshot`（本地测试）；version 通过 `-ldflags -X main.version={{.Version}}` 注入
@@ -96,12 +96,35 @@ go tool cover -html=coverage.out
 ## 插件注册与全局 hooks
 
 `.claude-plugin/` 目录是插件注册基础：
-- `plugin.json` — 元数据（名称 `claude-tab-fix`、版本 `1.0.3`、描述、作者 WithHolm、仓库 URL）
-- 用户通过 `/plugin install claude-tab-fix@WithHolm/claude-tab-fix` 注册插件
+- `plugin.json` — 元数据（名称 `claude-tab-fix`、版本 `0.1.0`、描述、作者 file-edit-fix、仓库 URL）
+- 通过 skills-dir junction 全局安装（`~/.claude/skills/claude-tab-fix` → 本仓库）
 
 **插件系统会从 `hooks/hooks.json` 自动加载 hooks**，当插件启用时，hooks 全局生效（包括所有项目及 worktrees）。不需要手动配置全局 `settings.json`。
 
 ### 插件安装
+
+本项目通过 skills-dir 方式注册为全局插件：
+
+```bash
+# junction 已在 ~/.claude/skills/claude-tab-fix 指向本仓库
+# 启用后 hooks 自动生效，无需其他配置
+```
+
+### 更新插件缓存
+
+如果 `hooks/hooks.json` 有更新，需要重新创建 junction：
+
+```bash
+# 方式一：重新创建 junction（Windows）
+mklink /J %USERPROFILE%\.claude\skills\claude-tab-fix D:\Work\Projectsile_edit_fix\claude-tab-fix
+
+# 方式二：手动更新缓存（适用于 marketplace 安装）
+# 更新 ~/.claude/plugins/cache/claude-tab-fix/claude-tab-fix/<version>/hooks/hooks.json
+```
+
+### 使用原版安装
+
+如需从原版安装：
 
 ```bash
 go install github.com/WithHolm/claude-tab-fix@latest
@@ -109,27 +132,7 @@ go install github.com/WithHolm/claude-tab-fix@latest
 /plugin install claude-tab-fix@WithHolm/claude-tab-fix
 ```
 
-### 更新插件缓存
-
-如果 `hooks/hooks.json` 有更新，需要重新安装插件或手动更新缓存：
-
-```bash
-# 方式一：重新安装
-/plugin uninstall claude-tab-fix@claude-tab-fix
-/plugin install claude-tab-fix@WithHolm/claude-tab-fix
-
-# 方式二：手动更新缓存（适用于 fork）
-# 更新 ~/.claude/plugins/cache/claude-tab-fix/claude-tab-fix/<version>/hooks/hooks.json
-```
-
-### 使用 fork 安装
-
-如果从 fork 安装，需要先添加 fork 作为 marketplace：
-
-```bash
-/plugin marketplace add your-org/claude-tab-fix
-/plugin install claude-tab-fix@your-org/claude-tab-fix
-```
+> **注意：** 原版不包含 Bash/Write 告警 hook。fork 版（本仓库）额外增加了这两个 hook。
 
 ### `hooks/hooks.json` 配置
 
