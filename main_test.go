@@ -547,6 +547,25 @@ func TestIntegration_NoIndentInOldString(t *testing.T) {
 	assertPassThrough(t, res)
 }
 
+// Fuzzy match failure must block with feedback (exit 2), not silently pass through.
+// This ensures Claude knows the hook ran and why it couldn't help.
+func TestIntegration_FuzzyMatchFailure_BlocksWithFeedback(t *testing.T) {
+	path := writeTemp(t, "package main\n\nfunc foo() {\n\tx := 1\n}\n")
+	res := runHook(t, makeInput(t, "Edit", editInput{
+			FilePath:  path,
+			OldString: "completely unrelated content that will never match",
+			NewString: "also unrelated",
+		}))
+
+	if res.exitCode != 2 {
+		t.Fatalf("expected exit 2 (block with feedback) on fuzzy match failure, got exit %d\nstderr:\n%s",
+			res.exitCode, res.stderr)
+	}
+	if !strings.Contains(res.stderr, "fuzzy match failed") {
+		t.Fatalf("expected 'fuzzy match failed' in feedback stderr, got:\n%s", res.stderr)
+	}
+}
+
 // --- Bash / Write advisory warning tests ---
 
 func TestBash_WarnOnTabFile(t *testing.T) {

@@ -445,7 +445,13 @@ func handleEdit(raw json.RawMessage) {
 		} else {
 			logf("WARNING: old_string not found in file and fuzzy match failed — edit will likely fail")
 			logf("old_string was:\n%s", newOld)
-			passThrough()
+			blockWithFeedback(fmt.Sprintf(
+				"claude-tab-fix: old_string not found in file and fuzzy match failed.\n"+
+					"old_string (after reindent):\n%s\n\n"+
+					"The hook could not locate this content in the file. "+
+					"Check that the old_string matches the file's actual content.",
+				newOld,
+			))
 			return
 		}
 	}
