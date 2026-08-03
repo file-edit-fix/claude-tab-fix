@@ -39,5 +39,5 @@ changelog:
 
 release:
   github:
-    owner: WithHolm
+    owner: file-edit-fix
     name: claude-tab-fix
